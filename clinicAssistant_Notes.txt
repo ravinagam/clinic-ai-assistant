@@ -1,0 +1,40 @@
+
+
+docker-compose down
+docker-compose up --build
+
+http://localhost:8080/health
+
+http://localhost:3002 — patient-facing chat
+http://localhost:3003 — dashboard + appointment management
+
+
+🔥 High-ROI Use Cases (Start First)
+
+If you're planning a startup or product, start with:
+
+✅ AI Reception + Appointment Booking
+✅ Medical Scribe (huge demand)
+✅ RAG-based Patient Record Search
+✅ Follow-up Automation (WhatsApp-based)
+
+
+👉 “Clinic AI Operating System”
+
+A single platform that includes:
+
+Reception bot
+Doctor copilot
+Patient record search (RAG)
+Billing + follow-ups
+
+💰 Charge: ₹3000–₹15000/month per clinic
+
+
+Suggested Tech Stack (Low Cost + High Performance)
+Backend: FastAPI
+LLM: OpenAI / Claude / local Llama
+Vector DB: Chroma / Weaviate
+UI: React / Next.js
+Voice: Whisper / Deepgram
+WhatsApp: Meta API / Twilio
