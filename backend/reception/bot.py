@@ -1,19 +1,52 @@
 import json
 import re
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Callable, Awaitable
+import logging
 
 import anthropic
+
 from config import settings
 from reception.session import session_manager
 from reception.prompts import get_system_prompt
+
+logger = logging.getLogger(__name__)
+
+# Tool the bot can call to look up real doctor availability from the DB
+TOOLS = [
+    {
+        "name": "get_available_doctors",
+        "description": (
+            "Look up which doctors are available at this clinic for a given symptom or specialty. "
+            "Call this when the patient asks: which doctor should I see, who is available, "
+            "do you have a cardiologist, who treats chest pain, etc. "
+            "Returns real doctor names and their next available appointment slots."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "symptoms_or_specialty": {
+                    "type": "string",
+                    "description": "Patient's symptoms or the medical specialty they asked about (e.g. 'chest pain', 'cardiology', 'skin rash')",
+                },
+                "preferred_date": {
+                    "type": "string",
+                    "description": "Optional preferred date in YYYY-MM-DD format",
+                },
+            },
+            "required": ["symptoms_or_specialty"],
+        },
+    }
+]
+
+ToolHandler = Callable[[str, dict], Awaitable[str]]
 
 
 @dataclass
 class BotResponse:
     session_id: str
     message: str
-    booking_intent: Optional[dict] = None  # populated when bot collected all booking info
+    booking_intent: Optional[dict] = None
 
 
 class ReceptionBot:
@@ -25,31 +58,74 @@ class ReceptionBot:
         message: str,
         session_id: Optional[str] = None,
         channel: str = "web",
+        tool_handler: Optional[ToolHandler] = None,
     ) -> BotResponse:
-        # Create session if new conversation
         if not session_id:
             session_id = session_manager.new_session_id()
 
-        # Persist user message
         history = await session_manager.append_message(session_id, "user", message)
 
-        # Call Claude Haiku
-        response = await self._client.messages.create(
-            model=settings.claude_model,
-            max_tokens=512,
-            system=get_system_prompt(),
-            messages=history,
-        )
+        messages = [
+            {"role": msg["role"], "content": msg["content"]}
+            for msg in history
+        ]
 
-        assistant_text = response.content[0].text
+        try:
+            response = await self._client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=512,
+                system=get_system_prompt(),
+                messages=messages,
+                tools=TOOLS if tool_handler else [],
+            )
 
-        # Persist assistant reply
+            # Handle tool call — Claude wants to query doctor availability
+            if response.stop_reason == "tool_use" and tool_handler:
+                tool_block = next(b for b in response.content if b.type == "tool_use")
+                logger.info(f"Bot tool call: {tool_block.name}({tool_block.input})")
+
+                tool_result = await tool_handler(tool_block.name, tool_block.input)
+
+                # Feed result back to Claude for the final patient-facing reply
+                messages_with_tool = messages + [
+                    {"role": "assistant", "content": response.content},
+                    {
+                        "role": "user",
+                        "content": [{
+                            "type": "tool_result",
+                            "tool_use_id": tool_block.id,
+                            "content": tool_result,
+                        }],
+                    },
+                ]
+
+                final_response = await self._client.messages.create(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=512,
+                    system=get_system_prompt(),
+                    messages=messages_with_tool,
+                    tools=TOOLS,
+                )
+                assistant_text = next(
+                    b.text for b in final_response.content if b.type == "text"
+                )
+            else:
+                assistant_text = next(
+                    (b.text for b in response.content if b.type == "text"), ""
+                )
+
+        except Exception as e:
+            logger.error(f"Claude API error: {e}")
+            return BotResponse(
+                session_id=session_id,
+                message="I'm having a temporary issue. Please try again in a moment.",
+                booking_intent=None,
+            )
+
+        # Save only the final text reply to session history
         await session_manager.append_message(session_id, "assistant", assistant_text)
 
-        # Extract booking intent JSON if present
         booking_intent = self._extract_booking_intent(assistant_text)
-
-        # Strip the JSON block from the visible message
         visible_message = self._strip_json_block(assistant_text)
 
         return BotResponse(
@@ -59,7 +135,6 @@ class ReceptionBot:
         )
 
     def _extract_booking_intent(self, text: str) -> Optional[dict]:
-        """Parse the structured JSON block the bot appends when booking intent is complete."""
         pattern = r"```json\s*(\{.*?\})\s*```"
         match = re.search(pattern, text, re.DOTALL)
         if not match:
@@ -73,7 +148,6 @@ class ReceptionBot:
         return None
 
     def _strip_json_block(self, text: str) -> str:
-        """Remove the JSON block from the patient-facing message."""
         return re.sub(r"```json.*?```", "", text, flags=re.DOTALL).strip()
 
 

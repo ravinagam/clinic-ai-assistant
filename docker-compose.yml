@@ -26,10 +26,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 15
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
@@ -44,16 +45,31 @@ services:
       retries: 5
 
   chat-widget:
-    build: ./frontend/chat-widget
+    build:
+      context: ./frontend/chat-widget
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+        VITE_CLINIC_NAME: ${VITE_CLINIC_NAME:-City Health Clinic}
     ports:
       - "3002:80"
-    env_file: .env
 
   staff-portal:
-    build: ./frontend/staff-portal
+    build:
+      context: ./frontend/staff-portal
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+        VITE_CLINIC_NAME: ${VITE_CLINIC_NAME:-City Health Clinic}
     ports:
       - "3003:80"
-    env_file: .env
+
+  doctor-portal:
+    build:
+      context: ./frontend/doctor-portal
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+        VITE_CLINIC_NAME: ${VITE_CLINIC_NAME:-City Health Clinic}
+    ports:
+      - "3004:80"
 
 volumes:
   postgres_data:

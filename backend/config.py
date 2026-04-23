@@ -12,9 +12,10 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379/0"
 
-    # Claude AI
-    anthropic_api_key: str
-    claude_model: str = "claude-haiku-4-5-20251001"
+    # Anthropic / Gemini AI
+    anthropic_api_key: str = ""
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-1.5-flash"
 
     # Clinic
     clinic_name: str = "City Health Clinic"
@@ -36,7 +37,7 @@ class Settings(BaseSettings):
     # Google Calendar
     google_client_id: str = ""
     google_client_secret: str = ""
-    google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
+    google_redirect_uri: str = "http://localhost:8080/auth/google/callback"
 
     # Security
     secret_key: str = "changeme"
@@ -47,7 +48,7 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.allowed_origins.split(",")]
 
     class Config:
-        env_file = ".env"
+        env_file = (".env", "../.env")
         extra = "ignore"
 
 

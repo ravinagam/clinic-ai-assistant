@@ -15,8 +15,8 @@ cp .env.example .env
 docker-compose up --build
 
 # Services:
-#   API:          http://localhost:8000
-#   API Docs:     http://localhost:8000/docs
+#   API:          http://localhost:8080
+#   API Docs:     http://localhost:8080/docs
 #   Chat Widget:  http://localhost:3000
 #   Staff Portal: http://localhost:3001
 ```
@@ -30,7 +30,7 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp ../.env.example ../.env   # fill in values
-uvicorn main:app --reload
+uvicorn main:app --port 8080 --reload
 ```
 
 ### Frontend (Chat Widget)
@@ -64,7 +64,7 @@ npm run dev   # http://localhost:3001
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `ANTHROPIC_API_KEY` | From console.anthropic.com |
+| `GEMINI_API_KEY` | From aistudio.google.com |
 | `CLINIC_NAME` | Your clinic name |
 
 ## Environment Variables (Optional)
@@ -80,7 +80,7 @@ backend/
   main.py              — FastAPI app + scheduler
   config.py            — Settings from .env
   database.py          — SQLAlchemy async engine
-  reception/           — AI bot (Claude Haiku)
+  reception/           — AI bot (Gemini Flash)
   appointments/        — Slot engine + DB models
   notifications/       — SMS/email service
   channels/            — web_api + twilio webhooks

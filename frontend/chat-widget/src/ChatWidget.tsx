@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API_URL = import.meta.env.VITE_API_URL || ""; // empty string lets the proxy handle it if relative
 
 interface Message {
   role: "user" | "assistant";
@@ -48,6 +48,7 @@ export default function ChatWidget() {
     setInput("");
     setLoading(true);
 
+    console.log("Fetching from:", `${API_URL}/chat/message`);
     try {
       const res = await fetch(`${API_URL}/chat/message`, {
         method: "POST",

@@ -3,9 +3,13 @@ WORKDIR /app
 COPY package.json .
 RUN npm install
 COPY . .
+ARG VITE_API_URL=http://localhost:8080
+ARG VITE_CLINIC_NAME=City Health Clinic
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_CLINIC_NAME=$VITE_CLINIC_NAME
 RUN npm run build
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 3001
+EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

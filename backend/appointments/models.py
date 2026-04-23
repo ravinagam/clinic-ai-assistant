@@ -56,6 +56,7 @@ class Doctor(Base):
     phone = Column(String(20), nullable=True)
     email = Column(String(120), nullable=True)
     google_calendar_id = Column(String(255), nullable=True)
+    pin_hash = Column(String(128), nullable=True)  # bcrypt hash of 4–6 digit PIN
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
 

@@ -64,11 +64,12 @@ async def twilio_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     if bot_response.booking_intent:
         intent = bot_response.booking_intent
         try:
-            doctor = await get_best_doctor(db, intent.get("reason", ""))
+            preferred_dt = parse_preferred_datetime(intent.get("preferred_datetime", ""))
+            preferred_date = preferred_dt.date() if preferred_dt else None
+            doctor = await get_best_doctor(db, intent.get("reason", ""), preferred_date)
             if not doctor:
                 reply_text += "\n\nNo doctors configured. Please call us."
             else:
-                preferred_dt = parse_preferred_datetime(intent.get("preferred_datetime", ""))
                 slot = await find_best_slot(db, doctor.id, preferred_dt)
                 if not slot:
                     reply_text += "\n\nNo open slots in the next 2 weeks. Our team will call you."

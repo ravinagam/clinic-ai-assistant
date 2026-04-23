@@ -10,6 +10,7 @@ from database import create_tables, AsyncSessionLocal
 from channels.web_api import router as web_router
 from channels.twilio_webhook import router as twilio_router
 from staff.router import router as staff_router
+from doctor.router import router as doctor_router
 from notifications.service import log_notification_config
 
 logging.basicConfig(level=logging.INFO)
@@ -70,14 +71,14 @@ async def send_reminders():
 async def lifespan(app: FastAPI):
     # Retry DB connection — handles any residual startup lag
     import asyncio
-    for attempt in range(10):
+    for attempt in range(20):
         try:
             await create_tables()
             break
         except Exception as e:
-            if attempt == 9:
+            if attempt == 19:
                 raise
-            logger.warning(f"DB not ready (attempt {attempt + 1}/10): {e}. Retrying in 3s…")
+            logger.warning(f"DB not ready (attempt {attempt + 1}/20): {e}. Retrying in 3s…")
             await asyncio.sleep(3)
 
     log_notification_config()
@@ -108,6 +109,7 @@ app.add_middleware(
 app.include_router(web_router)
 app.include_router(twilio_router)
 app.include_router(staff_router)
+app.include_router(doctor_router)
 
 
 @app.get("/health")

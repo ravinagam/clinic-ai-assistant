@@ -38,6 +38,11 @@ export default function Doctors() {
     slot_duration_minutes: 20,
   });
 
+  // PIN management
+  const [pinDoctor, setPinDoctor] = useState<number | null>(null);
+  const [pin, setPin] = useState("");
+  const [pinMsg, setPinMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   const fetchDoctors = async () => {
     try {
       const res = await fetch(`${API}/staff/doctors`);
@@ -84,6 +89,25 @@ export default function Doctors() {
       setError(err instanceof Error ? err.message : "Failed to connect. Check ALLOWED_ORIGINS in .env.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const savePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pinDoctor) return;
+    setPinMsg(null);
+    try {
+      const res = await fetch(`${API}/staff/doctors/${pinDoctor}/set-pin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to set PIN.");
+      setPinMsg({ ok: true, text: data.message });
+      setPin("");
+    } catch (err) {
+      setPinMsg({ ok: false, text: err instanceof Error ? err.message : "Error" });
     }
   };
 
@@ -155,15 +179,57 @@ export default function Doctors() {
                     <div style={{ fontWeight: 600, fontSize: 14 }}>Dr. {d.name}</div>
                     <div style={{ fontSize: 12, color: "#64748b" }}>{d.specialty || "General"}</div>
                   </div>
-                  <button onClick={() => selectDoctor(d.id)}
-                    style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: selDoctor === d.id ? "#2563eb" : "#fff", color: selDoctor === d.id ? "#fff" : "#1e293b", cursor: "pointer" }}>
-                    {selDoctor === d.id ? "✓ Selected" : "Set Availability"}
-                  </button>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => selectDoctor(d.id)}
+                      style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: selDoctor === d.id ? "#2563eb" : "#fff", color: selDoctor === d.id ? "#fff" : "#1e293b", cursor: "pointer" }}>
+                      {selDoctor === d.id ? "✓ Selected" : "Set Availability"}
+                    </button>
+                    <button onClick={() => { setPinDoctor(d.id === pinDoctor ? null : d.id); setPinMsg(null); setPin(""); }}
+                      style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: pinDoctor === d.id ? "#7c3aed" : "#fff", color: pinDoctor === d.id ? "#fff" : "#1e293b", cursor: "pointer" }}>
+                      🔑 PIN
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Set PIN Panel */}
+        {pinDoctor && (
+          <div style={{ background: "#fff", borderRadius: 12, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", gridColumn: "1 / -1" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+              Set Doctor PIN — Dr. {doctors.find((d) => d.id === pinDoctor)?.name}
+            </h2>
+            <p style={{ fontSize: 13, color: "#64748b", marginBottom: 16 }}>
+              The doctor will use this 4–6 digit PIN to log in to their personal schedule view.
+            </p>
+            {pinMsg && (
+              <div style={{ background: pinMsg.ok ? "#f0fdf4" : "#fee2e2", color: pinMsg.ok ? "#16a34a" : "#dc2626", padding: "10px 12px", borderRadius: 8, fontSize: 13, marginBottom: 12 }}>
+                {pinMsg.text}
+              </div>
+            )}
+            <form onSubmit={savePin} style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+              <div>
+                <label style={{ fontSize: 12, color: "#64748b", display: "block", marginBottom: 6 }}>New PIN (4–6 digits)</label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="e.g. 1234"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                  required
+                  style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 16, letterSpacing: 6, width: 140 }}
+                />
+              </div>
+              <button type="submit"
+                style={{ background: "#7c3aed", color: "#fff", border: "none", borderRadius: 8, padding: "9px 20px", cursor: "pointer", fontWeight: 600, fontSize: 14 }}>
+                Save PIN
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* Availability Panel */}
         {selDoctor && (

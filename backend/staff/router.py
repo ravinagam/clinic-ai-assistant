@@ -3,8 +3,9 @@ Staff portal API — appointment management, doctor config, availability setup.
 """
 from datetime import date, datetime, time
 from typing import Optional
-
+from passlib.context import CryptContext
 from fastapi import APIRouter, Depends, HTTPException
+import bcrypt
 from pydantic import BaseModel
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
@@ -57,6 +58,27 @@ async def create_doctor(body: DoctorCreate, db: AsyncSession = Depends(get_db)):
 async def list_doctors(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Doctor).where(Doctor.is_active == True))
     return result.scalars().all()
+
+
+class SetPinRequest(BaseModel):
+    pin: str  # 4–6 digits
+
+
+@router.post("/doctors/{doctor_id}/set-pin")
+async def set_doctor_pin(
+    doctor_id: int,
+    body: SetPinRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    if not body.pin.isdigit() or not (4 <= len(body.pin) <= 6):
+        raise HTTPException(status_code=400, detail="PIN must be 4–6 digits.")
+    result = await db.execute(select(Doctor).where(Doctor.id == doctor_id))
+    doctor = result.scalar_one_or_none()
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found.")
+    doctor.pin_hash = bcrypt.hashpw(body.pin.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    await db.commit()
+    return {"message": f"PIN set for Dr. {doctor.name}."}
 
 
 # ── Availability ──────────────────────────────────────────────────────────────

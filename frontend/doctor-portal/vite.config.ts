@@ -5,9 +5,10 @@ export default defineConfig({
   envDir: "../../",
   plugins: [react()],
   server: {
-    port: 3005,
+    port: 3004,
     proxy: {
-      "/chat": "http://localhost:8080",
+      "/doctor": "http://localhost:8080",
+      "/staff": "http://localhost:8080",
     },
   },
 });
